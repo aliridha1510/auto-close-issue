@@ -1,32 +1,31 @@
 name: Log project card changes
 
 on:
-    workflow_dispatch
+  workflow_dispatch
 
 jobs:
   log_message:
     runs-on: ubuntu-latest
     steps:
-    - name: Get project card details
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const github = require('@actions/github');
-          const cardId = github.context.payload.project_card.id;
+      - name: Get project card details
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const cardId = github.context.payload.project_card.id;
+            
+            async function run() {
+              const { data: card } = await github.rest.projects.getCard({ card_id: cardId });
+              const action = github.context.payload.action;
 
-          async function run() {
-            const { data: card } = await github.rest.projects.getCard({ card_id: cardId });
-            const action = github.context.payload.action;
+              let message;
+              if (action === 'created') {
+                message = `Card created: ${card.content_url}`;
+              } else {
+                const { data: column } = await github.rest.projects.getColumn({ column_id: card.column_id });
+                message = `Card moved to column: ${column.name}`;
+              }
 
-            let message;
-            if (action === 'created') {
-              message = `Card created: ${card.content_url}`;
-            } else {
-              const { data: column } = await github.rest.projects.getColumn({ column_id: card.column_id });
-              message = `Card moved to column: ${column.name}`;
+              console.log(message);
             }
 
-            console.log(message);
-          }
-
-          run();
+            run();
