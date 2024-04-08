@@ -1,8 +1,7 @@
 name: Log project card changes
 
 on:
-  project_card:
-    types: [workflow_dispatch]
+    workflow_dispatch
 
 jobs:
   log_message:
