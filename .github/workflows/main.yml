@@ -2,7 +2,7 @@ name: Close issue if moved to Done column
 
 on:
   project_card:
-    types: [moved]
+    types: [created]
 
 jobs:
   auto-close-issue:
