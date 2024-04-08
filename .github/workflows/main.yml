@@ -1,58 +1,33 @@
-name: Close issue if moved to Done column
+name: Log project card changes
 
 on:
   project_card:
-    types: [created]
+    types: [created, moved]
 
 jobs:
-  auto-close-issue:
+  log_message:
     runs-on: ubuntu-latest
-    permissions: # Optional, adjust based on your workflow's needs
-      issues: write  # Request write access to issues (if only closing issues)
     steps:
-    - name: Close issue if moved to Done column
+    - name: Get project card details
       uses: actions/github-script@v6
       with:
         script: |
           const github = require('@actions/github');
-          const DONE_COLUMN_NAME = 'Done'; // Ensure this matches your Done column name exactly
+          const cardId = github.context.payload.project_card.id;
 
           async function run() {
-            const cardId = github.context.payload.project_card.id;
+            const { data: card } = await github.rest.projects.getCard({ card_id: cardId });
+            const action = github.context.payload.action;
 
-            try {
-              // Fetch card details
-              const { data: card } = await github.rest.projects.getCard({ card_id: cardId });
-
-              if (!card.content_url) {
-                console.log('Card does not link to an issue. Skipping.');
-                return;
-              }
-
-              // Extract issue number from content URL
-              const issueNumber = parseInt(card.content_url.split('/').pop(), 10);
-
-              // Optional: Fetch column details (for logging purposes)
+            let message;
+            if (action === 'created') {
+              message = `Card created: ${card.content_url}`;
+            } else {
               const { data: column } = await github.rest.projects.getColumn({ column_id: card.column_id });
-
-              if (column.name === DONE_COLUMN_NAME) {
-                console.log(`Card moved to column: ${column.name}`);
-
-                // Update issue state to closed
-                await github.rest.issues.update({
-                  owner: github.context.repo.owner,
-                  repo: github.context.repo.repo,
-                  issue_number: issueNumber,
-                  state: 'closed'
-                });
-
-                console.log(`Issue #${issueNumber} closed successfully.`);
-              } else {
-                console.log(`Card moved to column: ${column.name} (not Done).`);
-              }
-            } catch (error) {
-              console.error(error); // Log any errors for troubleshooting
+              message = `Card moved to column: ${column.name}`;
             }
+
+            console.log(message);
           }
 
           run();
