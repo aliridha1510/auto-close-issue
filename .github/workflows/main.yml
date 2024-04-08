@@ -2,7 +2,7 @@ name: Log project card changes
 
 on:
   project_card:
-    types: [created, moved]
+    types: [workflow_dispatch]
 
 jobs:
   log_message:
