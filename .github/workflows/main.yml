@@ -1,0 +1,58 @@
+name: Close issue if moved to Done column
+
+on:
+  project_card:
+    types: [moved]
+
+jobs:
+  auto-close-issue:
+    runs-on: ubuntu-latest
+    permissions: # Optional, adjust based on your workflow's needs
+      issues: write  # Request write access to issues (if only closing issues)
+    steps:
+    - name: Close issue if moved to Done column
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const github = require('@actions/github');
+          const DONE_COLUMN_NAME = 'Done'; // Ensure this matches your Done column name exactly
+
+          async function run() {
+            const cardId = github.context.payload.project_card.id;
+
+            try {
+              // Fetch card details
+              const { data: card } = await github.rest.projects.getCard({ card_id: cardId });
+
+              if (!card.content_url) {
+                console.log('Card does not link to an issue. Skipping.');
+                return;
+              }
+
+              // Extract issue number from content URL
+              const issueNumber = parseInt(card.content_url.split('/').pop(), 10);
+
+              // Optional: Fetch column details (for logging purposes)
+              const { data: column } = await github.rest.projects.getColumn({ column_id: card.column_id });
+
+              if (column.name === DONE_COLUMN_NAME) {
+                console.log(`Card moved to column: ${column.name}`);
+
+                // Update issue state to closed
+                await github.rest.issues.update({
+                  owner: github.context.repo.owner,
+                  repo: github.context.repo.repo,
+                  issue_number: issueNumber,
+                  state: 'closed'
+                });
+
+                console.log(`Issue #${issueNumber} closed successfully.`);
+              } else {
+                console.log(`Card moved to column: ${column.name} (not Done).`);
+              }
+            } catch (error) {
+              console.error(error); // Log any errors for troubleshooting
+            }
+          }
+
+          run();
