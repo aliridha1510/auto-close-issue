@@ -1,31 +1,40 @@
-name: Log project card changes
+name: Close issue if moved to Done column
 
 on:
-  workflow_dispatch
+  project_card:
+    types: [moved]
 
 jobs:
-  log_message:
+  auto-close-issue:
     runs-on: ubuntu-latest
     steps:
-      - name: Get project card details
+      - name: Close issue if moved to Done column
         uses: actions/github-script@v6
         with:
           script: |
+            const DONE_COLUMN_NAME = 'Done'; // Ensure this matches the name of your Done column exactly
             const cardId = github.context.payload.project_card.id;
-            
+
             async function run() {
+              // Fetch card details
               const { data: card } = await github.rest.projects.getCard({ card_id: cardId });
-              const action = github.context.payload.action;
+              if (!card.content_url) return;
 
-              let message;
-              if (action === 'created') {
-                message = `Card created: ${card.content_url}`;
-              } else {
-                const { data: column } = await github.rest.projects.getColumn({ column_id: card.column_id });
-                message = `Card moved to column: ${column.name}`;
-              }
+              // Fetch column details
+              const { data: column } = await github.rest.projects.getColumn({ column_id: card.column_id });
+              if (column.name !== DONE_COLUMN_NAME) return;
 
-              console.log(message);
+              // Extract the issue number from the card's content_url
+              const issueNumber = card.content_url.split('/').pop();
+
+              // Close the issue
+              await github.rest.issues.update({
+                owner: github.context.repo.owner,
+                repo: github.context.repo.repo,
+                issue_number: issueNumber,
+                state: 'closed'
+              });
             }
 
             run();
+          github-token: ${{ secrets.GITHUB_TOKEN }}
